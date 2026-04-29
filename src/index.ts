@@ -19,6 +19,6 @@ app.get('/', (c) => {
 })
 
 export default {
-  port: 8000,
+  port: 3000,
   fetch: app.fetch
 }
