@@ -7,27 +7,33 @@ const NODE_ENV = process.env.NODE_ENV ?? 'production'
 const isDevelopment = NODE_ENV === 'development'
 
 const logDir = path.resolve(process.cwd(), 'logs')
-const logFilePath = path.join(logDir, 'pino-request.log')
+const accessLogPath = path.join(logDir, 'access.log')
+const errorLogPath = path.join(logDir, 'error.log')
 
 // 初始化一次即可，避免每个请求重复创建 logger
-const logger = (() => {
+const commonLoggerOptions = {
+  level: 'info',
+  // 避免把敏感信息写进日志
+  redact: ['req.headers.authorization'],
+}
+
+const accessLogger = (() => {
   if (isDevelopment) {
-    return pino({
-      level: 'info',
-      redact: ['req.headers.authorization'],
-    })
+    // 开发环境：直接输出到控制台（stdout），不写入日志文件
+    return pino(commonLoggerOptions)
   }
 
   fs.mkdirSync(logDir, { recursive: true })
-  const destination = fs.createWriteStream(logFilePath, { flags: 'a' })
+  return pino(commonLoggerOptions, fs.createWriteStream(accessLogPath, { flags: 'a' }))
+})()
 
-  return pino(
-    {
-      level: 'info',
-      redact: ['req.headers.authorization'],
-    },
-    destination,
-  )
+const errorLogger = (() => {
+  if (isDevelopment) {
+    // 开发环境：同样只写控制台（也便于本地排查）
+    return accessLogger
+  }
+
+  return pino(commonLoggerOptions, fs.createWriteStream(errorLogPath, { flags: 'a' }))
 })()
 
 export const requestLogger: MiddlewareHandler = async (c, next) => {
@@ -53,7 +59,8 @@ export const requestLogger: MiddlewareHandler = async (c, next) => {
     const query = c.req.query()
     const params = c.req.param()
 
-    logger.info(
+    const targetLogger = status >= 400 ? errorLogger : accessLogger
+    targetLogger.info(
       {
         method,
         url,
