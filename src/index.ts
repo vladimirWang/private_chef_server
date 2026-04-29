@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception'
 import { ZodError } from 'zod'
 import { errorResponse, successResponse } from './models/Response'
 import userRouter from './router/userRouter';
+import { requestLogger } from './middleware/requestLogger'
 
 
 // prisma.User.create({
@@ -16,6 +17,9 @@ import userRouter from './router/userRouter';
 //     console.log("fail: ", e)
 // })
 const app = new Hono()
+
+// 记录请求：url / 请求参数 / ip / 响应处理耗时
+app.use('*', requestLogger)
 
 app.onError((err, c) => {
   if (err instanceof ZodError) {
