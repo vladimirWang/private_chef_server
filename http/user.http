@@ -1,0 +1,10 @@
+@base = http://localhost:3000
+
+### 注册
+POST {{base}}/user/register
+Content-Type: application/json
+
+{
+    "email": "4131144633@qq.com",
+    "password": "123123"
+}
