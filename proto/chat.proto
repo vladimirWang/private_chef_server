@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package privatechef.chat;
+
+service ChatService {
+  rpc StreamChat (ChatStreamRequest) returns (stream ChatStreamResponse);
+  rpc GetChatMessages (GetChatMessagesRequest) returns (GetChatMessagesResponse);
+  rpc ClearChatMessages (ClearChatMessagesRequest) returns (ClearChatMessagesResponse);
+}
+
+message ChatStreamRequest {
+  string message = 1;
+  string image_url = 2;
+  string thread_id = 3;
+}
+
+message ChatStreamResponse {
+  string chunk = 1;
+}
+
+message GetChatMessagesRequest {
+  string thread_id = 1;
+}
+
+message ChatMessage {
+  string role = 1;
+  string content = 2;
+}
+
+message GetChatMessagesResponse {
+  repeated ChatMessage messages = 1;
+}
+
+message ClearChatMessagesRequest {
+  string thread_id = 1;
+}
+
+message ClearChatMessagesResponse {
+  bool success = 1;
+}
+

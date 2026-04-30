@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import prisma from "../utils/prisma";
+import prisma from "../plugins/prisma";
 import {z} from 'zod'
 import {zValidator} from '@hono/zod-validator'
 import { successResponse } from "../models/Response";

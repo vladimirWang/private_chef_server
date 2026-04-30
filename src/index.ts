@@ -3,6 +3,8 @@ import { HTTPException } from 'hono/http-exception'
 import { ZodError } from 'zod'
 import { errorResponse, successResponse } from './models/Response'
 import userRouter from './router/userRouter';
+import chatRouter from './router/chatRouter';
+import utilRouter from './router/utilRouter';
 import { requestLogger } from './middleware/requestLogger'
 
 
@@ -39,6 +41,8 @@ app.notFound((c) => {
 })
 
 app.route('/user', userRouter)
+.route('/chat', chatRouter)
+.route('/util', utilRouter)
 
 app.get('/', (c) => {
   return c.json(
@@ -49,6 +53,6 @@ app.get('/', (c) => {
 })
 
 export default {
-  port: 3000,
+  port: Number(process.env.PORT ?? 3000),
   fetch: app.fetch
 }
