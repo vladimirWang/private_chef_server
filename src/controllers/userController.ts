@@ -1,6 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
-import prisma from "../utils/prisma";
+import prisma from "../plugins/prisma";
 import { successResponse } from "../models/Response";
 
 type LoginBody = {
