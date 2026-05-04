@@ -33,11 +33,13 @@ userRouter.get("/", (c) => {
       message: "Hello World user",
     })
   );
-}).post("/login", zValidator("json", loginSchema, (result) => {
+})
+.post("/login", zValidator("json", loginSchema, (result) => {
   if (!result.success) {
     throw result.error;
   }
-}), userLogin).post("/register", zValidator("json", registerSchema, (result) => {
+}), userLogin)
+.post("/register", zValidator("json", registerSchema, (result) => {
   if (!result.success) {
     throw result.error;
   }

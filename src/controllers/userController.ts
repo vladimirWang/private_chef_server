@@ -2,6 +2,9 @@ import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
 import prisma from "../plugins/prisma";
 import { successResponse } from "../models/Response";
+import { decode, sign, verify } from 'hono/jwt'
+
+const JWT_SECRET = process.env.JWT_SECRET
 
 type LoginBody = {
   email: string;
@@ -27,14 +30,20 @@ export const userLogin = async (c: LoginContext) => {
     throw new HTTPException(401, { message: "邮箱或密码错误" });
   }
 
+  const payload = {
+    userId: user.id,
+  }
+  // const secret = 'mySecretKey'
+  const token = await sign(payload, JWT_SECRET)
+
   const resp = successResponse(
     {
-      id: user.id,
-      email: user.email,
+      token
+      // id: user.id,
+      // email: user.email,
     },
     "登录成功"
   )
-  console.log("login resp: ", resp)
   return c.json(
     resp
   );
