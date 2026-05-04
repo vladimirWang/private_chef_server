@@ -22,5 +22,5 @@ COPY . .
 
 # # 使用生产模式运行
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["bun", "run", "src/index.ts"]
+CMD ["bun", "run", "src/index.ts", "--mode", "online"]
 
