@@ -7,3 +7,4 @@ node_modules/
 logs/
 .env.dev
 .env.prod
+static/uploaded/

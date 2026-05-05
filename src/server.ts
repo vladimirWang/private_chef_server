@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { serveStatic } from 'hono/bun'
 import { HTTPException } from 'hono/http-exception'
 import { ZodError } from 'zod'
 import { errorResponse, successResponse } from './models/Response'
@@ -8,7 +9,7 @@ import utilRouter from './router/utilRouter';
 import { requestLogger } from './middleware/requestLogger'
 import {jwt} from 'hono/jwt'
 import type { JwtVariables } from 'hono/jwt'
-import {getRunMode} from './runMode'
+import {getRunMode, RunMode} from './runMode'
 
 let mode = getRunMode()
 mode = mode ?? "online"
@@ -24,14 +25,16 @@ const JWT_SECRET =process.env.JWT_SECRET!
 // }).catch(e => {
 //     console.log("fail: ", e)
 // })
-type Variables = JwtVariables
-const app = new Hono<{ Variables: Variables }>()
+type JwtPayload = { userId: number }
+type AppVariables = JwtVariables<JwtPayload> & { mode: RunMode }
+
+const app = new Hono<{ Variables: AppVariables }>()
 
 /** 不需要鉴权的完整路径（含挂载前缀，如 /user/login） */
 const JWT_PUBLIC_PATHS = new Set<string>(['/', '/user/login', '/user/register'])
 
-/** 不需要鉴权的路径前缀（例如 /util/health） */
-const JWT_PUBLIC_PREFIXES: string[] = []
+/** 不需要鉴权的路径前缀（须含前导 /，与 c.req.path 一致） */
+const JWT_PUBLIC_PREFIXES: string[] = ['/static']
 
 function isJwtPublic(path: string, method: string): boolean {
   if (method === 'OPTIONS') return true
@@ -50,6 +53,22 @@ const jwtAuth = jwt({
 
 // 记录请求：url / 请求参数 / ip / 响应处理耗时
 app.use('*', requestLogger)
+
+app.use('*', async (c, next) => {
+  let mode = getRunMode()
+  mode = mode ?? "online"
+  c.set('mode', mode)
+  await next()
+})
+
+/** 本地上传的文件：/static/uploaded/... → 进程工作目录下 static/... */
+app.use(
+  '/static/*',
+  serveStatic({
+    root: process.cwd(),
+    rewriteRequestPath: (p) => p.replace(/^\//, ''),
+  })
+)
 
 app.use('*', async (c, next) => {
   if (isJwtPublic(c.req.path, c.req.method)) return next()

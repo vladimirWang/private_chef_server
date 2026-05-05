@@ -1,6 +1,9 @@
 import type { Context } from "hono";
 import { client } from "../plugins/oss";
 import { successResponse } from "../models/Response";
+import path from "node:path";
+import fs from "node:fs";
+import { RunMode } from "../runMode";
 
 type FileUploadBody = {
     file: Blob;
@@ -56,18 +59,20 @@ export const uploadFile = async (c: Context) => {
     if (file.size === 0) {
       return c.json({ error: "Empty file" }, 400);
     }
+    console.log('-----process.env.BASE_URL: ', file.type)
     const buffer = Buffer.from(await file.arrayBuffer());
     const objectKey = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${sanitizeFilename(file.name)}`;
+    const mode = c.var.mode as RunMode;
     try {
-      const result = await client.put(objectKey, buffer,
-    //     {
-    //     headers: {
-    //       "Content-Type": file.type || "application/octet-stream",
-    //     },
-    //   }
-        );
-        console.log("result: ", result)
-      return c.json(successResponse({url: result.url}, "文件上传成功"));
+      if (mode === "local") {
+        const filePath = path.join("static/uploaded", objectKey);
+        fs.writeFileSync(filePath, buffer);
+        const BASE_URL = process.env.BASE_URL!;
+        return c.json(successResponse({url: `${BASE_URL}/${filePath}`}, "文件上传成功"));
+      } else {
+        const result = await client.put(objectKey, buffer);
+        return c.json(successResponse({url: result.url}, "文件上传成功"));
+      }
     } catch (e) {
       console.error("OSS upload failed:", e);
       return c.json({ error: "Upload failed" }, 500);
