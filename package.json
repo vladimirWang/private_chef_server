@@ -1,7 +1,8 @@
 {
   "name": "my-app",
   "scripts": {
-    "dev": "bunx dotenv -e .env.dev -- bun run --hot src/index.ts",
+    "dev:hot": "bunx dotenv -e .env.dev -- bun run --hot src/index.ts",
+    "dev": "bunx dotenv -e .env.dev -- bun run src/index.ts",
     "db:generate": "bunx dotenv -e .env.dev -- prisma generate",
     "db:migrate": "bunx dotenv -e .env.dev -- prisma migrate dev"
   },
