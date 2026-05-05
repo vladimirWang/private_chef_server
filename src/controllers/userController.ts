@@ -4,7 +4,7 @@ import prisma from "../plugins/prisma";
 import { successResponse } from "../models/Response";
 import { decode, sign, verify } from 'hono/jwt'
 
-const JWT_SECRET = process.env.JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET!
 
 type LoginBody = {
   email: string;
@@ -81,4 +81,14 @@ export const userRegister = async (c: RegisterContext) => {
       "注册成功"
     )
   );
+}
+
+export const getUserInfo = async (c: Context) => {
+  const userId = c.get("jwtPayload")
+  // const token = c.req.header("Authorization")?.split(" ")[1];
+  // if (!token) {
+  //   throw new HTTPException(401, { message: "未登录" });
+  // }
+  // const payload = await verify(token, JWT_SECRET);
+  return c.json(successResponse({userId}, "获取用户信息成功"));
 }
