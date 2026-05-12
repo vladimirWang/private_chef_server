@@ -46,9 +46,8 @@ function sanitizeFilename(name: string): string {
 //     //   }
 // }
 
-function getPresignUrl() {
-
-}
+/** 百炼 / DashScope 会从云端拉取图片 URL；私有 OSS 桶的直接 object URL 会 403，需返回签名 URL */
+const OSS_SIGNED_URL_EXPIRES_SEC = 86400; // 24h，足够完成一轮对话
 
 export const uploadFile = async (c: Context) => {
     const body = await c.req.parseBody();
@@ -70,8 +69,12 @@ export const uploadFile = async (c: Context) => {
         const BASE_URL = process.env.BASE_URL!;
         return c.json(successResponse({url: `${BASE_URL}/${filePath}`}, "文件上传成功"));
       } else {
-        const result = await client.put(objectKey, buffer);
-        return c.json(successResponse({url: result.url}, "文件上传成功"));
+        await client.put(objectKey, buffer);
+        const url = client.signatureUrl(objectKey, {
+          expires: OSS_SIGNED_URL_EXPIRES_SEC,
+          method: "GET",
+        });
+        return c.json(successResponse({ url }, "文件上传成功"));
       }
     } catch (e) {
       console.error("OSS upload failed:", e);
