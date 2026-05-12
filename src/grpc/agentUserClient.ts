@@ -25,12 +25,8 @@ const client = new AgentUserService(
   grpc.credentials.createInsecure(),
 );
 
+/** Server streaming：与 chatGrpc.streamChat 用法一致，返回 ClientReadableStream */
 export const agentUserGrpc = {
-  pingUser: (userId: number, question: string) =>
-    new Promise<{ message: string }>((resolve, reject) => {
-      client.PingUser({ user_id: userId, question: question }, (err: any, resp: any) => {
-        if (err) reject(err);
-        else resolve(resp);
-      });
-    }),
+  pingUserStream: (req: { user_id: number; question: string }) =>
+    client.PingUser(req),
 };

@@ -19,9 +19,9 @@ const streamSchema = z.object({
 
 const threadIdSchema = z.string().min(1);
 
-/** 与前端 chatConsult 对齐：可带 question，gRPC 仅使用 JWT 中的 userId */
+/** 与前端 chatConsult 对齐：question 必填 */
 const consultBodySchema = z.object({
-  question: z.string(),
+  question: z.string().min(1),
 });
 
 router.post(
@@ -37,19 +37,43 @@ router.post(
       return c.json(errorResponse(401, "未登录或 token 无效"), 401);
     }
     const userId = Number(rawId);
+    const question = body.question?.trim() ?? "";
+    if (!question) {
+      return c.json(errorResponse(400, "question 不能为空"), 400);
+    }
+
     try {
-      const grpcResp = await agentUserGrpc.pingUser(
-        userId,
-        body.question ?? ""
-      );
-      return c.json(
-        successResponse(
-          { message: grpcResp?.message ?? "" },
-          "success"
-        )
-      );
+      const call = agentUserGrpc.pingUserStream({
+        user_id: userId,
+        question,
+      });
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          call.on("data", (resp: { chunk?: string; done?: boolean }) => {
+            if (resp?.chunk != null && resp.chunk !== "") {
+              const line = `data: ${JSON.stringify(resp.chunk)}\n\n`;
+              controller.enqueue(encoder.encode(line));
+            }
+            if (resp?.done) {
+              controller.enqueue(encoder.encode('data: {"done": true}\n\n'));
+            }
+          });
+          call.on("error", (err: unknown) => controller.error(err as Error));
+          call.on("end", () => controller.close());
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
     } catch (err: any) {
-      console.error("grpc PingUser failed:", err);
+      console.error("grpc PingUser stream failed:", err);
       return c.json(
         errorResponse(500, "gRPC调用失败", {
           detail: err?.message ?? String(err),
