@@ -1,6 +1,6 @@
-# 与 docker-compose.yml 并行运行：须配合 start-test.sh 的 -p step9-test
-# 宿主机端口与生产错开：HTTP 8080、HTTPS 8443、MySQL 3307、Redis 6380
-# --env-file ./server/.env.test：与 .env.prod 同字段，供 mysql 与变量替换
+# 与 docker-compose.yml 并行运行：须配合 start-test.sh 的 -p private-chef-test
+# 宿主机端口与生产错开：HTTP 8080、HTTPS 8443、PostgreSQL 5434、Redis 6380
+# --env-file ../.env.test：与 .env.prod 同字段，供 postgres 与变量替换
 
 services:
   nginx:
@@ -26,40 +26,41 @@ services:
     # env_file:
     #   - ../.env.test
     # depends_on:
-    #   mysql:
+    #   postgres:
     #     condition: service_healthy
     #   redis:
     #     condition: service_started
 
-  # mysql:
-  #   image: mysql:8.0
+  # postgres:
+  #   image: postgres:17-alpine
   #   ports:
-  #     - "3308:3306"
+  #     - "5434:5432"
   #   environment:
-  #     MYSQL_ROOT_PASSWORD: "${DATABASE_PASSWORD}"
-  #     MYSQL_DATABASE: "${DATABASE_NAME}"
+  #     POSTGRES_USER: "${DATABASE_USER:-postgres}"
+  #     POSTGRES_PASSWORD: "${DATABASE_PASSWORD}"
+  #     POSTGRES_DB: "${DATABASE_NAME}"
   #   volumes:
-  #     - mysql_data_test:/var/lib/mysql
+  #     - postgres_data_test:/var/lib/postgresql/data
   #   healthcheck:
   #     test:
   #       [
   #         "CMD-SHELL",
-  #         'mysqladmin ping -h 127.0.0.1 -p"$$MYSQL_ROOT_PASSWORD" >/dev/null',
+  #         'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" || exit 1',
   #       ]
   #     interval: 5s
   #     timeout: 5s
   #     retries: 30
-  #     start_period: 40s
+  #     start_period: 20s
 
   # redis:
   #   image: redis:7.0-alpine
   #   ports:
-  #     - "6381:6379"
+  #     - "6380:6379"
   #   command:
   #     ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
   #   volumes:
   #     - redis_data_test:/data
 
 # volumes:
-#   mysql_data_test:
+#   postgres_data_test:
 #   redis_data_test:
