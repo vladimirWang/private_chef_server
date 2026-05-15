@@ -34,9 +34,11 @@ services:
 
   agent:
     build:
-      # 仓库根目录下的 private_chef_agent
+      # context 仅为 agent 目录；proto 通过 BuildKit 附加上下文供 Dockerfile 内 gen_proto.sh
       context: ../../private_chef_agent
       dockerfile: Dockerfile
+      additional_contexts:
+        server_proto: ../proto
     env_file:
       # 生产环境请在服务器上提供该文件（不要提交）
       - ../../private_chef_agent/.env.prod
