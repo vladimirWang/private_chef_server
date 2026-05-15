@@ -44,6 +44,8 @@ services:
       - ../../private_chef_agent/.env.prod
     expose:
       - "8001"
+    ports:
+      - "8001:8001"
     volumes:
       - private_chef_agent_db_prod:/app/db
     healthcheck:
