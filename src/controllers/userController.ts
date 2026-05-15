@@ -62,6 +62,7 @@ type RegisterContext = Context<
 
 export const userRegister = async (c: RegisterContext) => {
     const body = c.req.valid("json")
+    console.log("body.email: ", prisma.user)
     const record = await prisma.user.create({
         data: {
             email: body.email,
@@ -77,6 +78,8 @@ export const userRegister = async (c: RegisterContext) => {
       {
         id: record.id,
         email: record.email,
+        // id: 1,
+        // email: 'body.email',
       },
       "注册成功"
     )
