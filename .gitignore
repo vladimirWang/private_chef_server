@@ -8,3 +8,6 @@ logs/
 .env.dev
 .env.prod
 static/uploaded/
+
+nginx/ssl
+nginx/html
