@@ -26,11 +26,14 @@ const consultBodySchema = z.object({
 
 router.post(
   "/consult",
-  zValidator("json", consultBodySchema, (result) => {
-    if (!result.success) throw result.error;
+  zValidator("json", consultBodySchema, (result, c) => {
+    if (!result.success) {
+      return c.text('Invalid!', 400)
+    }
   }),
   async (c) => {
-    const body = c.req.valid("json");
+    const body = c.req.valid("json")
+    console.log("pass body: ", body);
     const payload = c.get("jwtPayload") as JwtPayload | undefined;
     const rawId = payload?.userId;
     if (rawId == null || !Number.isFinite(Number(rawId))) {
@@ -43,7 +46,7 @@ router.post(
     }
 
     try {
-      const call = agentUserGrpc.pingUserStream({
+      const call = agentUserGrpc.consultStream({
         user_id: userId,
         question,
       });

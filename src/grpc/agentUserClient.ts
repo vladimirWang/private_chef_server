@@ -18,15 +18,15 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const grpcPkg: any = grpc.loadPackageDefinition(packageDefinition);
-const AgentUserService = grpcPkg.privatechef.agent.AgentUserService;
+const ChatService = grpcPkg.privatechef.agent.ChatService;
 
-const client = new AgentUserService(
+const client = new ChatService(
   GRPC_ADDR,
   grpc.credentials.createInsecure(),
 );
 
 /** Server streaming：与 chatGrpc.streamChat 用法一致，返回 ClientReadableStream */
 export const agentUserGrpc = {
-  pingUserStream: (req: { user_id: number; question: string }) =>
-    client.PingUser(req),
+  consultStream: (req: { user_id: number; question: string }) =>
+    client.Consult(req),
 };
