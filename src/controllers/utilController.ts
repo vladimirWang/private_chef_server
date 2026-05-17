@@ -6,6 +6,7 @@ import fs from "node:fs";
 import { RunMode } from "../runMode";
 import prisma from "../plugins/prisma";
 import crypto from "node:crypto";
+import { redisClient } from "../plugins/redis";
 
 type FileUploadBody = {
     file: Blob;
@@ -113,4 +114,19 @@ export const uploadFile = async (c: Context) => {
     // res.write(object.content);
     // 
     return c.json({});
+  }
+
+  export const verifyEmail = async (c: Context) => {
+    // const body = await c.req.parseBody();
+    const body = c.req.valid("json");
+    const email = body.email;
+    const code = body.code;
+    console.log("body: ", body, JSON.stringify(body));
+    console.log("email: ", email, "code: ", code);
+    const verificationCode = await redisClient.get(`emailVerification:${email}`);
+    console.log("verificationCode: ", verificationCode);
+    if (verificationCode !== code) {
+      return c.json(successResponse({ message: "验证码错误" }));
+    }
+    return c.json(successResponse({ message: "验证码正确" }));
   }

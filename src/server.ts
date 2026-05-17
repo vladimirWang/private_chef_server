@@ -11,6 +11,9 @@ import { requestLogger } from './middleware/requestLogger'
 import {jwt} from 'hono/jwt'
 import type { JwtVariables } from 'hono/jwt'
 import {getRunMode, RunMode} from './runMode'
+import { connectRedis } from './plugins/redis';
+
+await connectRedis()
 
 let mode = getRunMode()
 mode = mode ?? "online"
