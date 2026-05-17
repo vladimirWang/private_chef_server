@@ -18,3 +18,15 @@ model User {
   email String @unique
   password String
 }
+
+model KnowledgeFile {
+  id Int @id @default(autoincrement())
+  filename String
+  filepath String @unique
+  filetype String
+  filesize Int
+  md5 String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
