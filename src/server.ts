@@ -5,6 +5,7 @@ import { ZodError } from 'zod'
 import { errorResponse, successResponse } from './models/Response'
 import userRouter from './router/userRouter';
 import chatRouter from './router/chatRouter';
+import knowledgeBaseRouter from './router/knowledgeBaseRouter';
 import utilRouter from './router/utilRouter';
 import { requestLogger } from './middleware/requestLogger'
 import {jwt} from 'hono/jwt'
@@ -95,6 +96,7 @@ app.notFound((c) => {
 app.route('/user', userRouter)
 .route('/chat', chatRouter)
 .route('/util', utilRouter)
+.route('/knowledgeBase', knowledgeBaseRouter)
 
 app.get('/', (c) => {
   return c.json(

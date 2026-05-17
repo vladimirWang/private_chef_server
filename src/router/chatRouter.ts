@@ -24,6 +24,36 @@ const consultBodySchema = z.object({
   question: z.string().min(1),
 });
 
+const textEncoder = new TextEncoder();
+
+/** gRPC ClientReadableStream → ReadableStream；须 bind controller，否则 Bun 下 enqueue 报 ERR_INVALID_THIS */
+function grpcCallToReadableStream(
+  call: {
+    on(event: "data", listener: (chunk: unknown) => void): unknown;
+    on(event: "error", listener: (err: Error) => void): unknown;
+    on(event: "end", listener: () => void): unknown;
+  },
+  onData: (resp: unknown, push: (bytes: Uint8Array) => void) => void,
+): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const push = controller.enqueue.bind(controller);
+      const close = controller.close.bind(controller);
+      const fail = controller.error.bind(controller);
+      call.on("data", (resp) => onData(resp, push));
+      call.on("error", (err) => fail(err));
+      call.on("end", () => close());
+    },
+  });
+}
+
+const sseHeaders = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+  "X-Accel-Buffering": "no",
+} as const;
+
 router.post(
   "/consult",
   zValidator("json", consultBodySchema, (result, c) => {
@@ -50,31 +80,17 @@ router.post(
         user_id: userId,
         question,
       });
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
-          call.on("data", (resp: { chunk?: string; done?: boolean }) => {
-            if (resp?.chunk != null && resp.chunk !== "") {
-              const line = `data: ${JSON.stringify(resp.chunk)}\n\n`;
-              controller.enqueue(encoder.encode(line));
-            }
-            if (resp?.done) {
-              controller.enqueue(encoder.encode('data: {"done": true}\n\n'));
-            }
-          });
-          call.on("error", (err: unknown) => controller.error(err as Error));
-          call.on("end", () => controller.close());
-        },
+      const stream = grpcCallToReadableStream(call, (resp, push) => {
+        const r = resp as { chunk?: string; done?: boolean };
+        if (r?.chunk != null && r.chunk !== "") {
+          push(textEncoder.encode(`data: ${JSON.stringify(r.chunk)}\n\n`));
+        }
+        if (r?.done) {
+          push(textEncoder.encode('data: {"done": true}\n\n'));
+        }
       });
 
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream; charset=utf-8",
-          "Cache-Control": "no-cache, no-transform",
-          Connection: "keep-alive",
-          "X-Accel-Buffering": "no",
-        },
-      });
+      return new Response(stream, { headers: sseHeaders });
     } catch (err: any) {
       console.error("grpc PingUser stream failed:", err);
       return c.json(
@@ -102,24 +118,12 @@ router.post(
       thread_id: body.thread_id,
     });
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        call.on("data", (resp: any) => {
-          if (resp?.chunk) controller.enqueue(encoder.encode(resp.chunk));
-        });
-        call.on("error", (err: any) => controller.error(err));
-        call.on("end", () => controller.close());
-      },
+    const stream = grpcCallToReadableStream(call, (resp, push) => {
+      const r = resp as { chunk?: string };
+      if (r?.chunk) push(textEncoder.encode(r.chunk));
     });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-      },
-    });
+    return new Response(stream, { headers: sseHeaders });
   }
 );
 

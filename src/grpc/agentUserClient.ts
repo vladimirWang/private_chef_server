@@ -1,32 +1,23 @@
-import * as grpc from "@grpc/grpc-js";
-import * as protoLoader from "@grpc/proto-loader";
 import { fileURLToPath } from "url";
+import {generateGrpcClient} from "./grpcCommon";
 
-/** 与 agent 上 PRIVATE_CHEF_AGENT_USER_GRPC_PORT（默认 50052）一致 */
-const GRPC_ADDR =
-  process.env.PRIVATE_CHEF_AGENT_USER_GRPC_ADDR || "127.0.0.1:50052";
-const PROTO_PATH = fileURLToPath(
+const USER_PROTO_PATH = fileURLToPath(
   new URL("../../proto/agent_user.proto", import.meta.url),
 );
 
-const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true,
-});
+const client = generateGrpcClient(USER_PROTO_PATH);
 
-const grpcPkg: any = grpc.loadPackageDefinition(packageDefinition);
-const ChatService = grpcPkg.privatechef.agent.ChatService;
-
-const client = new ChatService(
-  GRPC_ADDR,
-  grpc.credentials.createInsecure(),
-);
-
-/** Server streaming：与 chatGrpc.streamChat 用法一致，返回 ClientReadableStream */
 export const agentUserGrpc = {
+  /** Server streaming：与 chatGrpc.streamChat 用法一致，返回 ClientReadableStream */
   consultStream: (req: { user_id: number; question: string }) =>
     client.Consult(req),
+
+  /** Unary RPC：grpc-js 必须传 callback，不能 client.UpdateKnowledge(req) 后直接 await */
+  updateKnowledgeBase: (req: { filepath: string }) =>
+    new Promise<{ message: string }>((resolve, reject) => {
+      client.UpdateKnowledge(req, (err: Error | null, resp: { message: string }) => {
+        if (err) reject(err);
+        else resolve(resp);
+      });
+    }),
 };
