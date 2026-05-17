@@ -36,7 +36,7 @@ router.post(
     const res = await agentUserGrpc.updateKnowledgeBase({filepath: filepath});
     console.log("----updateKnowledgeBase res-----: ", res);
     return c.json({
-      message: "success",
+      message: res.message ?? "success",
     })
   }
 );
