@@ -5,4 +5,6 @@
 
 */
 -- AlterTable
+ALTER TABLE "User" ADD COLUMN     "salt" TEXT NULL;
+UPDATE TABLE "User" SET "salt" = 'DEFAULT SALT' WHERE "salt" IS NULL;
 ALTER TABLE "User" ADD COLUMN     "salt" TEXT NOT NULL;
