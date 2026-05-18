@@ -126,7 +126,7 @@ export const uploadFile = async (c: Context) => {
     const verificationCode = await redisClient.get(`emailVerification:${email}`);
     console.log("verificationCode: ", verificationCode);
     if (verificationCode !== code) {
-      return c.json(successResponse({ message: "验证码错误" }));
+      return c.json(successResponse({ result: false }));
     }
-    return c.json(successResponse({ message: "验证码正确" }));
+    return c.json(successResponse({ result: true }));
   }
