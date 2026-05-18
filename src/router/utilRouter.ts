@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { client } from "../plugins/oss";
-import { uploadFile, verifyEmail } from "../controllers/utilController";
+import { uploadFile, verifyEmail, getNonce } from "../controllers/utilController";
 import { sendEmail } from "../plugins/mailer";
 import { redisClient } from "../plugins/redis";
 import {randomBytes} from "node:crypto";
@@ -37,5 +37,6 @@ router.post("/uploadFile", uploadFile)
     return c.text('Invalid!', 400)
   }
 }), verifyEmail)
+.get("/get-nonce", getNonce);
 
 export default router;

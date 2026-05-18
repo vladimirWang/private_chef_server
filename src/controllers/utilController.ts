@@ -7,6 +7,7 @@ import { RunMode } from "../runMode";
 import prisma from "../plugins/prisma";
 import crypto from "node:crypto";
 import { redisClient } from "../plugins/redis";
+import { generateNonce } from "../utils/algo";
 
 type FileUploadBody = {
     file: Blob;
@@ -130,3 +131,9 @@ export const uploadFile = async (c: Context) => {
     }
     return c.json(successResponse({ result: true }));
   }
+
+  // 获取一次性nonce
+export const getNonce = async (c: Context) => {
+  const nonce = generateNonce();
+  return c.json(successResponse(nonce, "nonce生成成功"))
+};

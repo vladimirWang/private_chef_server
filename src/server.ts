@@ -34,15 +34,43 @@ type AppVariables = JwtVariables<JwtPayload> & { mode: RunMode }
 
 const app = new Hono<{ Variables: AppVariables }>()
 
-/** 不需要鉴权的完整路径（含挂载前缀，如 /user/login） */
-const JWT_PUBLIC_PATHS = new Set<string>(['/', '/user/login', '/user/register'])
+/** 不需要鉴权的固定路径（无动态段，与 c.req.path 完全一致） */
+const JWT_PUBLIC_EXACT = new Set<string>([
+  '/user/login',
+  '/user/register',
+  '/util/verifyEmail',
+  '/util/get-nonce',
+])
 
-/** 不需要鉴权的路径前缀（须含前导 /，与 c.req.path 一致） */
+/**
+ * 不需要鉴权的路径模板（Hono 写法，:name 匹配单段路径）
+ * 例：'/util/sendEmailVerificationCode/:email' 可匹配
+ *     /util/sendEmailVerificationCode/foo%40bar.com
+ */
+const JWT_PUBLIC_PATTERNS = [
+  '/util/sendEmailVerificationCode/:email',
+  '/user/getSalt/:email',
+] as const
+
+/** 不需要鉴权的路径前缀（静态资源等） */
 const JWT_PUBLIC_PREFIXES: string[] = ['/static']
+
+function pathPatternToRegExp(pattern: string): RegExp {
+  const escaped = pattern
+    .split('/')
+    .map((segment) =>
+      segment.startsWith(':') ? '[^/]+' : segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    )
+    .join('/')
+  return new RegExp(`^${escaped}$`)
+}
+
+const JWT_PUBLIC_PATTERN_REGS = JWT_PUBLIC_PATTERNS.map(pathPatternToRegExp)
 
 function isJwtPublic(path: string, method: string): boolean {
   if (method === 'OPTIONS') return true
-  if (JWT_PUBLIC_PATHS.has(path)) return true
+  if (JWT_PUBLIC_EXACT.has(path)) return true
+  if (JWT_PUBLIC_PATTERN_REGS.some((re) => re.test(path))) return true
   for (const prefix of JWT_PUBLIC_PREFIXES) {
     const p = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix
     if (path === p || path.startsWith(`${p}/`)) return true
