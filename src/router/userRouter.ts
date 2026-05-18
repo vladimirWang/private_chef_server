@@ -34,14 +34,15 @@ userRouter.get("/", (c) => {
     })
   );
 })
-.post("/login", zValidator("json", loginSchema, (result) => {
+.post("/login", zValidator("json", loginSchema, (result, c) => {
   if (!result.success) {
-    throw result.error;
+    // throw result.error;
+    return c.text('Invalid!', 400)
   }
 }), userLogin)
-.post("/register", zValidator("json", registerSchema, (result) => {
+.post("/register", zValidator("json", registerSchema, (result, c) => {
   if (!result.success) {
-    throw result.error;
+    return c.text('Invalid!', 400)
   }
 }), userRegister)
 .get("/info", getUserInfo)
