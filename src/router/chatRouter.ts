@@ -6,6 +6,7 @@ import { zValidator } from "@hono/zod-validator";
 import { chatGrpc } from "../grpc/chatClient";
 import { agentUserGrpc } from "../grpc/agentUserClient";
 import { errorResponse, successResponse } from "../models/Response";
+import prisma from "../plugins/prisma";
 
 type JwtPayload = { userId: number };
 const router = new Hono<{ Variables: JwtVariables<JwtPayload> }>();
@@ -19,10 +20,13 @@ const streamSchema = z.object({
 
 const threadIdSchema = z.string().min(1);
 
-/** 与前端 chatConsult 对齐：question 必填 */
+/** 与前端 chatConsult 对齐：question 必填；session_id 为 ChatSession UUID */
 const consultBodySchema = z.object({
   question: z.string().min(1),
+  session_id: z.string().uuid(),
 });
+
+const sessionIdQuerySchema = z.string().uuid();
 
 const textEncoder = new TextEncoder();
 
@@ -54,6 +58,23 @@ const sseHeaders = {
   "X-Accel-Buffering": "no",
 } as const;
 
+async function requireExistingUser(userId: number) {
+  return prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+}
+
+/** 确保 ChatSession 存在且属于当前用户（前端 threadId 即 session_id） */
+async function ensureChatSession(userId: number, sessionId: string) {
+  const existing = await prisma.chatSession.findFirst({
+    where: { id: sessionId, userId },
+    select: { id: true },
+  });
+  if (existing) return existing;
+  return prisma.chatSession.create({
+    data: { id: sessionId, userId },
+    select: { id: true },
+  });
+}
+
 router.post(
   "/consult",
   zValidator("json", consultBodySchema, (result, c) => {
@@ -75,10 +96,31 @@ router.post(
       return c.json(errorResponse(400, "question 不能为空"), 400);
     }
 
+    const user = await requireExistingUser(userId);
+    if (!user) {
+      return c.json(
+        errorResponse(401, "用户不存在或登录已失效，请重新注册/登录"),
+        401,
+      );
+    }
+
+    const sessionId = body.session_id;
+    const existing = await prisma.chatSession.findUnique({
+      where: { id: sessionId },
+      select: { userId: true },
+    });
+    if (existing && existing.userId !== userId) {
+      return c.json(errorResponse(404, "会话不存在或无权访问"), 404);
+    }
+    if (!existing) {
+      await prisma.chatSession.create({ data: { id: sessionId, userId } });
+    }
+
     try {
       const call = agentUserGrpc.consultStream({
         user_id: userId,
         question,
+        session_id: sessionId,
       });
       const stream = grpcCallToReadableStream(call, (resp, push) => {
         const r = resp as { chunk?: string; done?: boolean };
@@ -128,31 +170,28 @@ router.post(
 );
 
 router.get("/messages", async (c) => {
-  const threadId = c.req.query("thread_id");
-  const parsed = threadIdSchema.safeParse(threadId);
-  if (!parsed.success) {
-    throw new HTTPException(400, { message: "thread_id 不能为空" });
+  const payload = c.get("jwtPayload") as JwtPayload | undefined;
+  const rawId = payload?.userId;
+  if (rawId == null || !Number.isFinite(Number(rawId))) {
+    return c.json(errorResponse(401, "未登录或 token 无效"), 401);
   }
-
-  let resp: any;
-  try {
-    resp = await chatGrpc.getChatMessages({ thread_id: parsed.data });
-  } catch (err: any) {
-    console.error("grpc GetChatMessages failed:", err);
+  const userId = Number(rawId);
+  const user = await requireExistingUser(userId);
+  if (!user) {
     return c.json(
-      errorResponse(500, "gRPC调用失败", { detail: err?.message ?? String(err) }),
-      500
+      errorResponse(401, "用户不存在或登录已失效，请重新注册/登录"),
+      401,
     );
   }
-
-  return c.json(
-    successResponse({
-      messages: (resp?.messages ?? []).map((m: any) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    })
-  );
+  const sessionIdRaw = c.req.query("session_id");
+  const parsedSession = sessionIdQuerySchema.safeParse(sessionIdRaw);
+  if (!parsedSession.success) {
+    return c.json(errorResponse(400, "session_id 须为有效 UUID"), 400);
+  }
+  const sessionId = parsedSession.data;
+  await ensureChatSession(userId, sessionId);
+  const res = await agentUserGrpc.loadChatHistory({ session_id: sessionId });
+  return c.json(successResponse({ messages: res.messages }));
 });
 
 router.delete("/messages", async (c) => {

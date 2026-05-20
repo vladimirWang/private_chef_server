@@ -5,7 +5,8 @@
     "dev": "bunx dotenv -e .env.dev -- bun run src/index.ts",
     "db:generate": "bunx dotenv -e .env.dev -- prisma generate",
     "db:migrate": "bunx dotenv -e .env.dev -- prisma migrate dev",
-    "db:sync": "bunx dotenv -e .env.dev -- sh -c \"prisma generate && prisma migrate dev\""
+    "db:sync": "bunx dotenv -e .env.dev -- sh -c \"prisma generate && prisma migrate dev\"",
+    "db:reset": "bunx dotenv -e .env.dev -- sh -c \"prisma migrate reset\""
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

@@ -9,7 +9,7 @@ const client = generateGrpcClient(USER_PROTO_PATH);
 
 export const agentUserGrpc = {
   /** Server streaming：与 chatGrpc.streamChat 用法一致，返回 ClientReadableStream */
-  consultStream: (req: { user_id: number; question: string }) =>
+  consultStream: (req: { user_id: number; question: string; session_id: string }) =>
     client.Consult(req),
 
   /** Unary RPC：grpc-js 必须传 callback，不能 client.UpdateKnowledge(req) 后直接 await */
@@ -20,4 +20,12 @@ export const agentUserGrpc = {
         else resolve(resp);
       });
     }),
+
+    loadChatHistory: (req: any) =>
+      new Promise<any>((resolve, reject) => {
+        client.LoadChatHistory(req, (err: any, resp: any) => {
+          if (err) reject(err);
+          else resolve(resp);
+        });
+      }),
 };
