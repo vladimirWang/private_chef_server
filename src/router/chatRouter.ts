@@ -7,6 +7,11 @@ import { chatGrpc } from "../grpc/chatClient";
 import { agentUserGrpc } from "../grpc/agentUserClient";
 import { errorResponse, successResponse } from "../models/Response";
 import prisma from "../plugins/prisma";
+import {
+  payloadContent,
+  payloadRole,
+  sessionTitleFromContent,
+} from "../utils/chatMessagePayload";
 
 type JwtPayload = { userId: number };
 const router = new Hono<{ Variables: JwtVariables<JwtPayload> }>();
@@ -168,6 +173,63 @@ router.post(
     return new Response(stream, { headers: sseHeaders });
   }
 );
+
+router.get("/sessions", async (c) => {
+  const payload = c.get("jwtPayload") as JwtPayload | undefined;
+  const rawId = payload?.userId;
+  if (rawId == null || !Number.isFinite(Number(rawId))) {
+    return c.json(errorResponse(401, "未登录或 token 无效"), 401);
+  }
+  const userId = Number(rawId);
+  const user = await requireExistingUser(userId);
+  if (!user) {
+    return c.json(
+      errorResponse(401, "用户不存在或登录已失效，请重新注册/登录"),
+      401,
+    );
+  }
+
+  const rows = await prisma.chatSession.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      messages: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { payload: true, createdAt: true },
+      },
+    },
+  });
+
+  const sessions = rows
+    .filter((row) => row.messages.length > 0)
+    .map((row) => {
+      const firstUser = row.messages.find((m) => payloadRole(m.payload) === "user");
+      const last = row.messages[row.messages.length - 1];
+      const titleText =
+        row.title?.trim() ||
+        payloadContent(firstUser?.payload ?? null) ||
+        "新对话";
+      const previewText = payloadContent(last?.payload);
+      const lastAt = last?.createdAt ?? row.updatedAt;
+
+      return {
+        session_id: row.id,
+        title: sessionTitleFromContent(titleText),
+        preview: previewText
+          ? previewText.length > 60
+            ? `${previewText.slice(0, 60)}…`
+            : previewText
+          : undefined,
+        updated_at_ms: lastAt.getTime(),
+      };
+    });
+
+  return c.json(successResponse({ sessions }));
+});
 
 router.get("/messages", async (c) => {
   const payload = c.get("jwtPayload") as JwtPayload | undefined;
