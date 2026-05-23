@@ -1,29 +1,4 @@
 -- CreateTable
-CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
-    "email" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "salt" TEXT NOT NULL,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "KnowledgeFile" (
-    "id" SERIAL NOT NULL,
-    "filename" TEXT NOT NULL,
-    "filepath" TEXT NOT NULL,
-    "filetype" TEXT NOT NULL,
-    "filesize" INTEGER NOT NULL,
-    "md5" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "deletedAt" TIMESTAMP(3),
-
-    CONSTRAINT "KnowledgeFile_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "ChatSession" (
     "id" UUID NOT NULL,
     "userId" INTEGER NOT NULL,
@@ -46,15 +21,6 @@ CREATE TABLE "agent_chat_messages" (
 
     CONSTRAINT "agent_chat_messages_pkey" PRIMARY KEY ("id")
 );
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "KnowledgeFile_filepath_key" ON "KnowledgeFile"("filepath");
-
--- CreateIndex
-CREATE UNIQUE INDEX "KnowledgeFile_md5_key" ON "KnowledgeFile"("md5");
 
 -- CreateIndex
 CREATE INDEX "agent_chat_messages_session_id_idx" ON "agent_chat_messages"("session_id");
