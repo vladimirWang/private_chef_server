@@ -6,6 +6,7 @@ node_modules/
 # logs
 logs/
 .env.dev
+.env.dev_docker
 .env.prod
 static/uploaded/
 
