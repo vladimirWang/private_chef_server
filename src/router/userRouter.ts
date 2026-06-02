@@ -4,7 +4,7 @@ import prisma from "../plugins/prisma";
 import {z} from 'zod'
 import {zValidator} from '@hono/zod-validator'
 import { successResponse } from "../models/Response";
-import { userLogin, userRegister, getUserInfo, getUserSalt, updateUserProfile } from "../controllers/userController";
+import { userLogin, userRegister, getUserInfo, getUserSalt, updateUserProfile, changeUserPassword } from "../controllers/userController";
 const userRouter = new Hono();
 
 const loginSchema = z.object({
@@ -48,6 +48,7 @@ userRouter.get("/", (c) => {
 }), userRegister)
 .get("/info", getUserInfo)
 .put("/profile", updateUserProfile)
+.put("/password", changeUserPassword)
 .get("/getSalt/:email", getUserSalt)
 
 export default userRouter;

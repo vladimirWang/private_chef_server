@@ -220,3 +220,39 @@ export const getUserSalt = async (c: Context) => {
   })
   return c.json(successResponse(user?.salt, "获取用户盐成功"));
 }
+
+const changePasswordSchema = z.object({
+  old_password: z.string().min(1, "旧密码不能为空"),
+  new_password: z.string().min(6, "新密码至少 6 位").max(128, "新密码最多 128 个字符"),
+  nonce: z.string().min(1, "nonce 不能为空"),
+});
+
+export const changeUserPassword = async (c: Context<{ Variables: JwtVariables<JwtPayload> }>) => {
+  const userId = getUserId(c);
+  if (userId == null) {
+    return c.json(errorResponse(401, "未登录或 token 无效"), 401);
+  }
+
+  const body = changePasswordSchema.parse(await c.req.json());
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, password: true, salt: true },
+  });
+  if (!user) {
+    return c.json(errorResponse(404, "用户不存在"), 404);
+  }
+
+  const calculatedOldPassword = sha256(user.password + "_" + body.nonce);
+  if (calculatedOldPassword !== body.old_password) {
+    return c.json(errorResponse(400, "旧密码错误"), 400);
+  }
+
+  const newPasswordHash = sha256(body.new_password + "_" + user.salt);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: newPasswordHash },
+  });
+
+  return c.json(successResponse(null, "密码修改成功"));
+};
