@@ -24,9 +24,9 @@ services:
       - "3000"
     env_file:
       - ../.env.prod
+    # postgres 在 ../docker_infrastracture 独立 compose 中，跨项目无法用 depends_on；
+    # 启动顺序由 start.sh 等待 shared-postgres 健康后再 up。
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_started
     volumes:
@@ -62,28 +62,11 @@ services:
       timeout: 3s
       retries: 30
       start_period: 10s
+    networks:
+      - private_chef_network
 
-  # # PostgreSQL 17（与常见本机开发版本一致）；宿主机端口 5433 避免与本机 5432 冲突
-  # postgres:
-  #   image: pgvector/pgvector:pg17
-  #   ports:
-  #     - "5433:5432"
-  #   environment:
-  #     POSTGRES_USER: "${DATABASE_USER:-postgres}"
-  #     POSTGRES_PASSWORD: "${DATABASE_PASSWORD}"
-  #     POSTGRES_DB: "${DATABASE_NAME}"
-  #   volumes:
-  #     - private_chef_postgres_prod:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test:
-  #       [
-  #         "CMD-SHELL",
-  #         'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" || exit 1',
-  #       ]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 30
-  #     start_period: 20s
+  # PostgreSQL 由 docker_infrastracture 提供（shared-postgres，网络 private_chef_network）。
+  # 容器内连接主机名 postgres（服务名）或 shared-postgres（容器名），端口 5432。
 
   redis:
     image: redis:7.0-alpine
@@ -95,7 +78,6 @@ services:
       - private_chef_redis_prod:/data
 
 volumes:
-  private_chef_postgres_prod:
   private_chef_redis_prod:
   private_chef_agent_db_prod:
 
