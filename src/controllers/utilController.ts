@@ -4,8 +4,6 @@ import { successResponse } from "../models/Response";
 import path from "node:path";
 import fs from "node:fs";
 import { RunMode } from "../runMode";
-import prisma from "../plugins/prisma";
-import crypto from "node:crypto";
 import { redisClient } from "../plugins/redis";
 import { generateNonce } from "../utils/algo";
 
@@ -65,17 +63,7 @@ export const uploadFile = async (c: Context) => {
     console.log('-----process.env.BASE_URL: ', file.type)
     const buffer = Buffer.from(await file.arrayBuffer());
 
-
-    const md5Value = crypto.createHash('md5').update(buffer).digest('hex');
-    const existed = await prisma.knowledgeFile.findFirst({
-      where: {
-        md5: md5Value
-      }
-    })
-    if (existed) {
-      return c.json(successResponse({ url: existed.filepath }, "文件已存在，返回已存储的文件 URL"));
-    }
-    const objectKey = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${sanitizeFilename(file.name)}`;
+    const objectKey = `${Date.now()}-${globalThis.crypto.randomUUID().slice(0, 8)}-${sanitizeFilename(file.name)}`;
     const mode = c.var.mode as RunMode;
     let url = ''
     try {
@@ -93,15 +81,6 @@ export const uploadFile = async (c: Context) => {
         console.log("Generated signed URL-----:", url);
         // return c.json(successResponse({ url }, "文件上传成功"));
       }
-      await prisma.knowledgeFile.create({
-        data: {
-          filename: file.name,
-          filepath: url,
-          filetype: file.type,
-          filesize: file.size,
-          md5: md5Value
-        }
-      })
       return c.json(successResponse({url}, "文件上传成功"));
     } catch (e) {
       console.error("OSS upload failed:", e);

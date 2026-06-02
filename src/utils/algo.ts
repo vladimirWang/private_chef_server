@@ -16,3 +16,10 @@ export function generateNonce() {
     const timestamp = Date.now().toString();
     return `${randomStr}_${timestamp}`;
 }
+
+/** 生成随机密码（排除易混淆字符 0/O/1/l/I） */
+export function generateRandomPassword(length = 10): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = randomBytes(length);
+  return Array.from(bytes, (byte) => chars[byte % chars.length]).join("");
+}

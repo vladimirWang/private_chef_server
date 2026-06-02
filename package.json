@@ -6,7 +6,8 @@
     "db:generate": "bunx dotenv -e .env.dev -- prisma generate",
     "db:migrate": "bunx dotenv -e .env.dev -- prisma migrate dev",
     "db:sync": "bunx dotenv -e .env.dev -- sh -c \"prisma generate && prisma migrate dev\"",
-    "db:reset": "bunx dotenv -e .env.dev -- sh -c \"prisma migrate reset\""
+    "db:reset": "bunx dotenv -e .env.dev -- sh -c \"prisma migrate reset\"",
+    "db:pull": "bunx dotenv -e .env.dev -- prisma db pull"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
