@@ -8,6 +8,7 @@ import chatRouter from './router/chatRouter';
 import knowledgeBaseRouter from './router/knowledgeBaseRouter';
 import utilRouter from './router/utilRouter';
 import dishRouter from './router/dishRouter';
+import footprintRouter from './router/footprintRouter';
 import { requestLogger } from './middleware/requestLogger'
 import {jwt} from 'hono/jwt'
 import type { JwtVariables } from 'hono/jwt'
@@ -138,6 +139,7 @@ app.route('/user', userRouter)
 .route('/util', utilRouter)
 .route('/knowledgeBase', knowledgeBaseRouter)
 .route('/dish', dishRouter)
+.route('/footprint', footprintRouter)
 
 app.get('/', (c) => {
   return c.json(

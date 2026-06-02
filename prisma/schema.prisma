@@ -20,6 +20,7 @@ model User {
 
   agentChatMessages AgentChatMessage[]
   dishes            Dish[]
+  dishFootprints    DishFootprint[]
 
   @@map("user")
 }
@@ -35,9 +36,23 @@ model Dish {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
   user      User      @relation(fields: [userId], references: [id])
+  footprints DishFootprint[]
 
   @@index([userId])
   @@map("dish")
+}
+
+model DishFootprint {
+  id       Int      @id @default(autoincrement())
+  userId   Int      @map("user_id")
+  dishId   Int      @map("dish_id")
+  viewedAt DateTime @default(now()) @map("viewed_at")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dish     Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dishId])
+  @@index([userId, viewedAt(sort: Desc)])
+  @@map("dish_footprint")
 }
 
 model ChatSession {
