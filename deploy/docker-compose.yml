@@ -11,8 +11,8 @@ services:
       - "8080:80"
       - "8443:443"
     depends_on:
-      server:
-        condition: service_started
+      # server:
+      #   condition: service_started
       agent:
         condition: service_healthy
 
