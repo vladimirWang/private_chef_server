@@ -40,6 +40,7 @@ const app = new Hono<{ Variables: AppVariables }>()
 const JWT_PUBLIC_EXACT = new Set<string>([
   '/user/login',
   '/user/register',
+  '/user/forgot-password',
   '/util/verifyEmail',
   '/util/get-nonce',
   '/dish/feed',

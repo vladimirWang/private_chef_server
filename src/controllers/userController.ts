@@ -6,8 +6,9 @@ import prisma from "../plugins/prisma";
 import { successResponse, errorResponse } from "../models/Response";
 import { decode, sign, verify } from 'hono/jwt'
 import { redisClient } from "../plugins/redis";
-import { generateFixedSalt, sha256 } from "../utils/algo";
+import { generateFixedSalt, sha256, generateRandomPassword } from "../utils/algo";
 import { resolveUserDisplayName } from "../utils/userDisplay";
+import { sendEmail } from "../plugins/mailer";
 
 const JWT_SECRET = process.env.JWT_SECRET!
 
@@ -255,4 +256,61 @@ export const changeUserPassword = async (c: Context<{ Variables: JwtVariables<Jw
   });
 
   return c.json(successResponse(null, "密码修改成功"));
+};
+
+const FORGOT_PASSWORD_COOLDOWN_SEC = 60 * 5;
+const FORGOT_PASSWORD_SUCCESS_MSG = "若该邮箱已注册，新密码已发送至您的邮箱，请查收";
+
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().email("邮箱格式不正确"),
+});
+
+export const forgotUserPassword = async (c: Context) => {
+  const body = forgotPasswordSchema.parse(await c.req.json());
+  const email = body.email.trim();
+
+  const rateKey = `forgotPassword:${email}`;
+  const recent = await redisClient.get(rateKey);
+  if (recent) {
+    return c.json(errorResponse(429, "请求过于频繁，请 5 分钟后再试"), 429);
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { email },
+    select: { id: true, salt: true },
+  });
+
+  await redisClient.setEx(rateKey, FORGOT_PASSWORD_COOLDOWN_SEC, "1");
+
+  if (!user) {
+    return c.json(successResponse(null, FORGOT_PASSWORD_SUCCESS_MSG));
+  }
+
+  const newPassword = generateRandomPassword(10);
+  const emailBody = [
+    "您好，",
+    "",
+    "您的账号密码已重置。",
+    "",
+    `新密码：${newPassword}`,
+    "",
+    "请使用新密码登录，并尽快在个人中心修改为常用密码。",
+    "",
+    "如非本人操作，请立即联系客服。",
+  ].join("\n");
+
+  try {
+    await sendEmail(email, "私有厨师 - 密码重置", emailBody);
+  } catch (err) {
+    console.error("forgot password email failed:", err);
+    return c.json(errorResponse(500, "邮件发送失败，请稍后重试"), 500);
+  }
+
+  const passwordHash = sha256(newPassword + "_" + user.salt);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: passwordHash },
+  });
+
+  return c.json(successResponse(null, FORGOT_PASSWORD_SUCCESS_MSG));
 };
