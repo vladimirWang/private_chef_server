@@ -11,8 +11,8 @@ services:
       - "8080:80"
       - "8443:443"
     depends_on:
-      # server:
-      #   condition: service_started
+      server:
+        condition: service_started
       agent:
         condition: service_healthy
 
@@ -32,6 +32,7 @@ services:
     volumes:
       - /var/log/private-chef:/app/logs:rw
     networks:
+      - default
       - private_chef_network
 
   agent:
@@ -63,6 +64,7 @@ services:
       retries: 30
       start_period: 10s
     networks:
+      - default
       - private_chef_network
 
   # PostgreSQL 由 docker_infrastracture 提供（shared-postgres，网络 private_chef_network）。
