@@ -1,12 +1,23 @@
 import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
+import type { JwtVariables } from "hono/jwt";
+import { z } from "zod";
 import prisma from "../plugins/prisma";
-import { successResponse } from "../models/Response";
+import { successResponse, errorResponse } from "../models/Response";
 import { decode, sign, verify } from 'hono/jwt'
 import { redisClient } from "../plugins/redis";
 import { generateFixedSalt, sha256 } from "../utils/algo";
+import { resolveUserDisplayName } from "../utils/userDisplay";
 
 const JWT_SECRET = process.env.JWT_SECRET!
+
+type JwtPayload = { userId: number };
+
+function getUserId(c: Context<{ Variables: JwtVariables<JwtPayload> }>): number | null {
+  const rawId = c.get("jwtPayload")?.userId;
+  if (rawId == null || !Number.isFinite(Number(rawId))) return null;
+  return Number(rawId);
+}
 
 type LoginBody = {
   email: string;
@@ -100,15 +111,105 @@ export const userRegister = async (c: RegisterContext) => {
   );
 }
 
-export const getUserInfo = async (c: Context) => {
-  const userId = c.get("jwtPayload")
-  // const token = c.req.header("Authorization")?.split(" ")[1];
-  // if (!token) {
-  //   throw new HTTPException(401, { message: "未登录" });
-  // }
-  // const payload = await verify(token, JWT_SECRET);
-  return c.json(successResponse({userId}, "获取用户信息成功"));
-}
+export const getUserInfo = async (c: Context<{ Variables: JwtVariables<JwtPayload> }>) => {
+  const userId = getUserId(c);
+  if (userId == null) {
+    return c.json(errorResponse(401, "未登录或 token 无效"), 401);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      avatarUrl: true,
+      nickname: true,
+      likeCount: true,
+    },
+  });
+  if (!user) {
+    return c.json(errorResponse(404, "用户不存在"), 404);
+  }
+
+  const postCount = await prisma.dish.count({
+    where: { userId, deletedAt: null },
+  });
+
+  return c.json(
+    successResponse(
+      {
+        id: user.id,
+        email: user.email,
+        avatar_url: user.avatarUrl,
+        like_count: user.likeCount,
+        post_count: postCount,
+        display_name: resolveUserDisplayName(user),
+      },
+      "获取用户信息成功",
+    ),
+  );
+};
+
+const updateProfileSchema = z.object({
+  avatar_url: z.string().max(512).optional(),
+  nickname: z
+    .string()
+    .trim()
+    .min(1, "用户名不能为空")
+    .max(32, "用户名最多 32 个字符")
+    .optional(),
+});
+
+export const updateUserProfile = async (c: Context<{ Variables: JwtVariables<JwtPayload> }>) => {
+  const userId = getUserId(c);
+  if (userId == null) {
+    return c.json(errorResponse(401, "未登录或 token 无效"), 401);
+  }
+
+  const body = updateProfileSchema.parse(await c.req.json());
+  const data: { avatarUrl?: string | null; nickname?: string } = {};
+
+  if (body.avatar_url !== undefined) {
+    data.avatarUrl = body.avatar_url.trim() || null;
+  }
+  if (body.nickname !== undefined) {
+    data.nickname = body.nickname.trim();
+  }
+
+  if (Object.keys(data).length === 0) {
+    return c.json(errorResponse(400, "没有可更新的字段"), 400);
+  }
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: {
+      id: true,
+      email: true,
+      avatarUrl: true,
+      nickname: true,
+      likeCount: true,
+    },
+  });
+
+  const postCount = await prisma.dish.count({
+    where: { userId, deletedAt: null },
+  });
+
+  return c.json(
+    successResponse(
+      {
+        id: user.id,
+        email: user.email,
+        avatar_url: user.avatarUrl,
+        like_count: user.likeCount,
+        post_count: postCount,
+        display_name: resolveUserDisplayName(user),
+      },
+      "更新成功",
+    ),
+  );
+};
 
 export const getUserSalt = async (c: Context) => {
   const email = c.req.param("email")

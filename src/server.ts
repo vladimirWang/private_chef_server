@@ -41,6 +41,7 @@ const JWT_PUBLIC_EXACT = new Set<string>([
   '/user/register',
   '/util/verifyEmail',
   '/util/get-nonce',
+  '/dish/feed',
 ])
 
 /**
@@ -52,6 +53,12 @@ const JWT_PUBLIC_PATTERNS = [
   '/util/sendEmailVerificationCode/:email',
   '/user/getSalt/:email',
 ] as const
+
+/** GET /dish/:numericId 为公开详情；/dish/list、/dish/feed 等字面路径不能命中 :id */
+function isPublicDishDetail(path: string, method: string): boolean {
+  if (method !== 'GET') return false
+  return /^\/dish\/\d+$/.test(path)
+}
 
 /** 不需要鉴权的路径前缀（静态资源等） */
 const JWT_PUBLIC_PREFIXES: string[] = ['/static']
@@ -71,6 +78,7 @@ const JWT_PUBLIC_PATTERN_REGS = JWT_PUBLIC_PATTERNS.map(pathPatternToRegExp)
 function isJwtPublic(path: string, method: string): boolean {
   if (method === 'OPTIONS') return true
   if (JWT_PUBLIC_EXACT.has(path)) return true
+  if (isPublicDishDetail(path, method)) return true
   if (JWT_PUBLIC_PATTERN_REGS.some((re) => re.test(path))) return true
   for (const prefix of JWT_PUBLIC_PREFIXES) {
     const p = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix
